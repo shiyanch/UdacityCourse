@@ -1,15 +1,16 @@
 from decimal import Decimal, getcontext
+
 from vector import Vector
 
 getcontext().prec = 30
 
 
-class Line(object):
+class Plane(object):
 
     NO_NONZERO_ELTS_FOUND_MSG = 'No nonzero elements found'
 
     def __init__(self, normal_vector=None, constant_term=None):
-        self.dimension = 2
+        self.dimension = 3
 
         if not normal_vector:
             all_zeros = ['0']*self.dimension
@@ -29,66 +30,18 @@ class Line(object):
             c = self.constant_term
             basepoint_coords = ['0']*self.dimension
 
-            initial_index = Line.first_nonzero_index(n)
+            initial_index = Plane.first_nonzero_index(n)
             initial_coefficient = n[initial_index]
 
             basepoint_coords[initial_index] = c/initial_coefficient
             self.basepoint = Vector(basepoint_coords)
 
         except Exception as e:
-            if str(e) == Line.NO_NONZERO_ELTS_FOUND_MSG:
+            if str(e) == Plane.NO_NONZERO_ELTS_FOUND_MSG:
                 self.basepoint = None
             else:
                 raise e
 
-    def is_parallel_to(self, ell):
-        n1 = self.normal_vector
-        n2 = ell.normal_vector
-        return n1.is_parallel_to(n2)
-
-    def intersection_with(self, ell):
-        try:
-            A, B = self.normal_vector.coordinates
-            C, D = ell.normal_vector.coordinates
-            k1 = self.constant_term
-            k2 = ell.constant_term
-            denom = (A * D - B * C)
-
-            if MyDecimal(denom).is_near_zero():
-                if self == ell:
-                    return self
-                else:
-                    return None
-            one_over_denom = Decimal('1') / (A * D - B * C)
-            x_numerator = D*k1 - B*k2
-            y_numerator = -C*k1 + A*k2
-            return Vector([x_numerator, y_numerator]).times_scalar(one_over_denom)
-
-        except ZeroDivisionError:
-            if self == ell:
-                return self
-            else:
-                return None
-
-    def __eq__(self, ell):
-        if self.normal_vector.is_zero():
-            if not ell.normal_vector.is_zero():
-                return False
-            else:
-                diff = self.constant_term - ell.constant_term
-                return MyDecimal(diff).is_near_zero()
-        elif ell.normal_vector.is_zero():
-            return False
-
-        if not self.is_parallel_to(ell):
-            return False
-
-        x0 = self.basepoint
-        y0 = ell.basepoint
-        basepoint_difference = x0.minus(y0)
-
-        n = self.normal_vector
-        return basepoint_difference.is_orthogonal_to(n)
 
     def __str__(self):
 
@@ -117,7 +70,7 @@ class Line(object):
         n = self.normal_vector
 
         try:
-            initial_index = Line.first_nonzero_index(n)
+            initial_index = Plane.first_nonzero_index(n)
             terms = [write_coefficient(n[i], is_initial_term=(i==initial_index)) + 'x_{}'.format(i+1)
                      for i in range(self.dimension) if round(n[i], num_decimal_places) != 0]
             output = ' '.join(terms)
@@ -135,43 +88,84 @@ class Line(object):
 
         return output
 
+    def is_parallel(self, other):
+        return self.normal_vector.is_parallel_to(other.normal_vector)
+
+    def __eq__(self, other):
+        if self.normal_vector.is_zero():
+            if not other.normal_vector.is_zero():
+                return False
+            else:
+                diff = self.constant_term - other.constant_term
+                return MyDecimal(diff).is_near_zero()
+        elif other.normal_vector.is_zero():
+            return False
+
+        if not self.is_parallel(other):
+            return False
+
+        if __name__ == '__main__':
+            basepoint_difference = self.basepoint.minus(other.basepoint)
+            return basepoint_difference.is_orthogonal_to(self.normal_vector)
+
+    def __iter__(self):
+        self.current = 0
+        return self
+
+    def next(self):
+        if self.current >= len(self.normal_vector):
+            raise StopIteration
+        else:
+            current_value = self.normal_vector[self.current]
+            self.current += 1
+            return current_value
+
+    def __len__(self):
+        return len(self.normal_vector)
+
+    def __getitem__(self, i):
+        return self.normal_vector[i]
 
     @staticmethod
     def first_nonzero_index(iterable):
         for k, item in enumerate(iterable):
             if not MyDecimal(item).is_near_zero():
                 return k
-        raise Exception(Line.NO_NONZERO_ELTS_FOUND_MSG)
+        raise Exception(Plane.NO_NONZERO_ELTS_FOUND_MSG)
 
 
 class MyDecimal(Decimal):
     def is_near_zero(self, eps=1e-10):
         return abs(self) < eps
 
-# first system
-# 4.046x + 2.836y = 1.21
-# 10.115x + 7.09y = 3.025
 
-line1 = Line(Vector(['4.046', '2.836']), '1.21')
-line2 = Line(Vector(['10.115', '7.09']), '3.025')
+if __name__ == '__main__':
+    # first system of planes:
+    # -0.412x + 3.806y + 0.728z = -3.46
+    # 1.03x - 9.515y - 1.82z = 8.65
 
-print 'first system instersects in: {}'.format(line1.intersection_with(line2))
+    plane1 = Plane(Vector([-0.412, 3.806, 0.728]), -3.46)
+    plane2 = Plane(Vector([1.03, -9.515, -1.82]), 8.65)
 
+    print '1 is parallel: {}'.format(plane1.is_parallel(plane2))
+    print '1 is equal: {}'.format(plane1 == plane2)
 
-# second system
-# 7.204x + 3.182y = 8.68
-# 8.172x + 4.114y = 9.883
+    # second system of planes:
+    # 2.611x + 5.528y + 0.283z = 4.6
+    # 7.715x + 8.306y + 5.342z = 3.76
 
-line3 = Line(Vector([7.204, 3.182]), 8.68)
-line4 = Line(Vector([8.172, 4.114]), 9.883)
+    plane3 = Plane(Vector([2.611, 5.528, 0.283]), 4.6)
+    plane4 = Plane(Vector([7.715, 8.306, 5.342]), 3.76)
 
-print 'second system instersects in: {}'.format(line3.intersection_with(line4))
+    print '2 is parallel: {}'.format(plane3.is_parallel(plane4))
+    print '2 is equal: {}'.format(plane3 == plane4)
 
-# third system
-# 1.182x + 5.562y = 6.744
-# 1.773x + 8.343y = 9.525
+    # third system of planes:
+    # -7.926x + 8.625y - 7.212z = -7.952
+    # -2.642x + 2.875y - 2.404z = -2.443
 
-line5 = Line(Vector([1.182, 5.562]), 6.744)
-line6 = Line(Vector([1.773, 8.343]), 9.525)
+    plane5 = Plane(Vector([-7.926, 8.625, -7.212]), -7.952)
+    plane6 = Plane(Vector([-2.642, 2.875, -2.404]), -2.443)
 
-print 'third system instersects in: {}'.format(line5.intersection_with(line6))
+    print '3 is parallel: {}'.format(plane5.is_parallel(plane6))
+    print '3 is equal: {}'.format(plane5 == plane6)
