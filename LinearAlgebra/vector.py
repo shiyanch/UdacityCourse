@@ -1,5 +1,7 @@
 import math
+from decimal import Decimal, getcontext
 
+getcontext().prec = 30
 
 class Vector(object):
     CANNOT_NORMALIZE_ZERO_VECTOR_MSG = "Cannot normalize the zero vector"
@@ -9,7 +11,7 @@ class Vector(object):
         try:
             if not coordinates:
                 raise ValueError
-            self.coordinates = tuple(coordinates)
+            self.coordinates = tuple([Decimal(c) for c in coordinates])
             self.dimension = len(coordinates)
 
         except ValueError:
@@ -19,10 +21,29 @@ class Vector(object):
             raise TypeError('The coordinates must be an iterable')
 
     def __str__(self):
-        return 'Vector: {}'.format(self.coordinates)
+        return 'Vector: {}'.format([round(coord, 3)
+                                    for coord in self.coordinates])
 
     def __eq__(self, v):
         return self.coordinates == v.coordinates
+
+    def __iter__(self):
+        self.current = 0
+        return self
+
+    def next(self):
+        if self.current >= len(self.coordinates):
+            raise StopIteration
+        else:
+            current_value = self.coordinates[self.current]
+            self.current += 1
+            return current_value
+
+    def __len__(self):
+        return len(self.coordinates)
+
+    def __getitem__(self, i):
+        return self.coordinates[i]
 
     def plus(self, v):
         new_coordinates = [x+y for x, y in zip(self.coordinates, v.coordinates)]
@@ -33,17 +54,17 @@ class Vector(object):
         return Vector(new_coordinates)
 
     def times_scalar(self, c):
-        new_coordinates = [c*x for x in self.coordinates]
+        new_coordinates = [Decimal(c) * x for x in self.coordinates]
         return Vector(new_coordinates)
 
     def magnitude(self):
         coordinates_squared = [x**2 for x in self.coordinates]
-        return math.sqrt(sum(coordinates_squared))
+        return Decimal(math.sqrt(sum(coordinates_squared)))
 
     def normalized(self):
         try:
             magnitude = self.magnitude()
-            return self.times_scalar(1./magnitude)
+            return self.times_scalar(Decimal('1.0')/magnitude)
         except ZeroDivisionError:
             raise Exception(self.CANNOT_NORMALIZE_ZERO_VECTOR_MSG)
 
@@ -71,7 +92,7 @@ class Vector(object):
     def is_parallel_to(self, v):
         return self.is_zero() or v.is_zero() or self.angle_with(v) == 0 or self.angle_with(v) == math.pi
 
-    def orthogonal_with(self, v, tolerance=1e-10):
+    def is_orthogonal_to(self, v, tolerance=1e-10):
         return abs(self.dot(v)) < tolerance
 
     def is_zero(self, tolerance=1e-10):

@@ -41,6 +41,54 @@ class Line(object):
             else:
                 raise e
 
+    def is_parallel_to(self, ell):
+        n1 = self.normal_vector
+        n2 = ell.normal_vector
+        return n1.is_parallel_to(n2)
+
+    def intersection_with(self, ell):
+        try:
+            A, B = self.normal_vector.coordinates
+            C, D = ell.normal_vector.coordinates
+            k1 = self.constant_term
+            k2 = ell.constant_term
+            denom = (A * D - B * C)
+
+            if MyDecimal(denom).is_near_zero():
+                if self == ell:
+                    return self
+                else:
+                    return None
+            one_over_denom = Decimal('1') / (A * D - B * C)
+            x_numerator = D*k1 - B*k2
+            y_numerator = -C*k1 + A*k2
+            return Vector([x_numerator, y_numerator]).times_scalar(one_over_denom)
+
+        except ZeroDivisionError:
+            if self == ell:
+                return self
+            else:
+                return None
+
+    def __eq__(self, ell):
+        if self.normal_vector.is_zero():
+            if not ell.normal_vector.is_zero():
+                return False
+            else:
+                diff = self.constant_term - ell.constant_term
+                return MyDecimal(diff).is_near_zero()
+        elif ell.normal_vector.is_zero():
+            return False
+
+        if not self.is_parallel_to(ell):
+            return False
+
+        x0 = self.basepoint
+        y0 = ell.basepoint
+        basepoint_difference = x0.minus(y0)
+
+        n = self.normal_vector
+        return basepoint_difference.is_orthogonal_to(n)
 
     def __str__(self):
 
@@ -99,3 +147,31 @@ class Line(object):
 class MyDecimal(Decimal):
     def is_near_zero(self, eps=1e-10):
         return abs(self) < eps
+
+# first system
+# 4.046x + 2.836y = 1.21
+# 10.115x + 7.09y = 3.025
+
+line1 = Line(Vector([4.046, 2.836]), 1.21)
+line2 = Line(Vector([10.115, 7.09]), 3.025)
+
+print 'first system instersects in: {}'.format(line1.intersection_with(line2))
+
+
+# second system
+# 7.204x + 3.182y = 8.68
+# 8.172x + 4.114y = 9.883
+
+line3 = Line(Vector([7.204, 3.182]), 8.68)
+line4 = Line(Vector([8.172, 4.114]), 9.883)
+
+print 'second system instersects in: {}'.format(line3.intersection_with(line4))
+
+# third system
+# 1.182x + 5.562y = 6.744
+# 1.773x + 8.343y = 9.525
+
+line5 = Line(Vector([1.182, 5.562]), 6.744)
+line6 = Line(Vector([1.773, 8.343]), 9.525)
+
+print 'third system instersects in: {}'.format(line5.intersection_with(line6))
